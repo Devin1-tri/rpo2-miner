@@ -1,0 +1,44 @@
+[Unit]
+Description=RPOW2 Miner (T40 fork)
+Documentation=https://github.com/Devin1-tri/rpo2-miner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# ─── EDIT THESE THREE LINES ────────────────────────────────────────────────
+User=ubuntu
+WorkingDirectory=/home/ubuntu/rpo2-miner
+Environment=RPOW_SESSION=PASTE_YOUR_SESSION_COOKIE_HERE
+# ───────────────────────────────────────────────────────────────────────────
+
+# T40 tuning — override config.js defaults here if needed.
+Environment=RPOW_THREADS=3
+Environment=RPOW_DELAY=5500
+
+# Use the Rust solver (built via `cd solver && cargo build --release`).
+# If you don't have Rust installed, replace `index-rust.js` with `index.js`.
+ExecStart=/usr/bin/node index-rust.js
+
+# Auto-restart on crash, with backoff to avoid hammering the API.
+Restart=always
+RestartSec=10
+
+# Don't burn the CPU at top priority — keep the OS responsive.
+Nice=10
+
+# Log to journald (use `journalctl -u rpo2-miner -f` to follow).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rpo2-miner
+
+# Basic hardening.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/rpo2-miner
+
+[Install]
+WantedBy=multi-user.target

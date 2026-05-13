@@ -1,0 +1,14 @@
+[
+  {
+    "name": "account-1",
+    "cookie": "PASTE_SESSION_COOKIE_1_HERE"
+  },
+  {
+    "name": "account-2",
+    "cookie": "PASTE_SESSION_COOKIE_2_HERE"
+  },
+  {
+    "name": "account-3",
+    "cookie": "PASTE_SESSION_COOKIE_3_HERE"
+  }
+]

@@ -1,0 +1,19 @@
+node_modules/
+target/
+solver/target/
+
+# Sensitive - session cookies
+accounts.json
+config.js
+
+# Build artifacts
+*.exe
+*.so
+*.dylib
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots
+*.png

@@ -1,0 +1,22 @@
+{
+  "name": "rpow2-miner",
+  "version": "2.0.0",
+  "description": "RPOW2 high-performance miner - Node.js orchestrator + Rust native solver",
+  "main": "index-rust.js",
+  "scripts": {
+    "start": "node index-rust.js",
+    "start:multi": "node multi-rust.js",
+    "start:node": "node index.js",
+    "start:multi-node": "node multi.js",
+    "bench": "node bench.js",
+    "verify": "node verify.js",
+    "test": "node test.js",
+    "build:solver": "cd solver && cargo build --release"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["rpow2", "miner", "sha256", "proof-of-work", "rust"],
+  "license": "MIT",
+  "private": true
+}

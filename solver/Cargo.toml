@@ -1,0 +1,24 @@
+[package]
+name = "rpow2-solver"
+version = "1.0.0"
+edition = "2021"
+description = "High-performance SHA-256 PoW solver for RPOW2"
+
+[dependencies]
+rayon = "1.10"
+# On Linux VPS: build with --features asm for SHA-NI hardware acceleration
+# On Windows: build without asm (default)
+sha2 = "0.10"
+hex = "0.4"
+num_cpus = "1.16"
+
+[features]
+default = []
+asm = ["sha2/asm"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
