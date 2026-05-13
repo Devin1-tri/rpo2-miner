@@ -121,9 +121,12 @@ function solveWithRust(noncePrefixHex, difficultyBits) {
   return new Promise((resolve, reject) => {
     const args = [noncePrefixHex, String(difficultyBits), String(NUM_THREADS)];
 
+    // 30 min timeout — generous for low-thread machines on high difficulty.
+    const SOLVE_TIMEOUT_MS = 30 * 60 * 1000;
+
     execFile(SOLVER_BIN, args, {
       maxBuffer: 10 * 1024 * 1024,
-      timeout: 300_000,
+      timeout: SOLVE_TIMEOUT_MS,
     }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(`Solver failed: ${error.message}\nstderr: ${stderr}`));

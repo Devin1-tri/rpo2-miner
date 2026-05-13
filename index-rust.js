@@ -101,10 +101,31 @@ function solveWithRust(noncePrefixHex, difficultyBits) {
   return new Promise((resolve, reject) => {
     const args = [noncePrefixHex, String(difficultyBits), String(NUM_THREADS)];
 
+    // Timeout is generous: difficulty 33 on a 3-thread T40 can occasionally
+    // take 20+ minutes due to PoW's exponential variance. Use 30 minutes here
+    // — main loop's retry logic will catch any genuine stalls beyond that.
+    const SOLVE_TIMEOUT_MS = 30 * 60 * 1000;
+
+    const solveStart = Date.now();
+    let resolved = false;
+
+    // Heartbeat: print elapsed time every 30s so the user knows the solver
+    // is still alive (execFile buffers stderr, so otherwise it looks frozen).
+    const heartbeat = setInterval(() => {
+      if (resolved) return;
+      const elapsedSec = Math.floor((Date.now() - solveStart) / 1000);
+      const m = Math.floor(elapsedSec / 60);
+      const s = elapsedSec % 60;
+      process.stdout.write(`  [solving...] elapsed ${m}m ${s}s (difficulty=${difficultyBits}, threads=${NUM_THREADS})\n`);
+    }, 30_000);
+
     const proc = execFile(SOLVER_BIN, args, {
       maxBuffer: 10 * 1024 * 1024, // 10MB
-      timeout: 300_000, // 5 min max (should never hit this)
+      timeout: SOLVE_TIMEOUT_MS,
     }, (error, stdout, stderr) => {
+      resolved = true;
+      clearInterval(heartbeat);
+
       if (error) {
         reject(new Error(`Solver failed: ${error.message}\nstderr: ${stderr}`));
         return;
