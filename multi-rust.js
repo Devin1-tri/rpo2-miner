@@ -27,8 +27,10 @@ const TOTAL_THREADS = parseInt(process.env.RPOW_TOTAL_THREADS || '56', 10);
 const THREADS_PER_ACCOUNT = Math.max(1, Math.floor(TOTAL_THREADS / accounts.length));
 const API_BASE = process.env.RPOW_API_BASE || 'https://api.rpow2.com';
 const LOOP_DELAY_MS = process.env.RPOW_DELAY || '100';
+// Cargo emits `rpow2-solver` on Linux/macOS and `rpow2-solver.exe` on Windows.
+const BINARY_NAME = process.platform === 'win32' ? 'rpow2-solver.exe' : 'rpow2-solver';
 const SOLVER_BIN = process.env.RPOW_SOLVER_BIN ||
-  path.join(__dirname, 'solver', 'target', 'release', 'rpow2-solver');
+  path.join(__dirname, 'solver', 'target', 'release', BINARY_NAME);
 
 // Verify solver binary
 if (!fs.existsSync(SOLVER_BIN)) {

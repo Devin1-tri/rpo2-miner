@@ -25,14 +25,52 @@ Karena E-2224G **tidak punya SHA-NI maupun AVX-512**, Rust solver akan jatuh ke 
 
 ---
 
-## Quick Start (Recommended Path)
+## Quick Start — Windows (PowerShell)
+
+T40 Anda jalan Windows. Ikuti langkah ini di **PowerShell** (bukan CMD).
+
+```powershell
+# 1. Clone
+git clone https://github.com/Devin1-tri/rpo2-miner.git
+cd rpo2-miner
+
+# 2. Install Node.js 20+ (kalau belum)
+#    Download dari https://nodejs.org/ (LTS), install pakai default options.
+node --version   # verifikasi: harus >= 18
+
+# 3. Install Rust toolchain (untuk solver native)
+#    Download rustup-init.exe dari https://rustup.rs/ dan jalankan.
+#    Saat installer tanya, pilih default (option 1).
+#    Setelah selesai, buka PowerShell BARU agar PATH ter-refresh.
+cargo --version   # verifikasi
+
+# 4. Build Rust solver (~1–3 menit pertama kali)
+cd solver
+.\build.ps1
+cd ..
+
+# 5. Configure
+copy config.example.js config.js
+notepad config.js          # paste SESSION_COOKIE dari browser
+
+# 6. Run (Rust solver, single account)
+node index-rust.js
+```
+
+### Catatan Windows
+- Binary Rust di Windows = `rpow2-solver.exe` (sudah otomatis di-detect oleh script).
+- Kalau `cargo build` complain butuh "Visual Studio Build Tools", install dari:
+  https://visualstudio.microsoft.com/visual-cpp-build-tools/ → centang **"Desktop development with C++"**.
+- Defender / antivirus kadang flag binary mining sebagai suspicious — itu false positive, tambah folder repo ke whitelist kalau perlu.
+
+## Quick Start — Linux (Bash)
 
 ```bash
 # 1. Clone
 git clone https://github.com/Devin1-tri/rpo2-miner.git
 cd rpo2-miner
 
-# 2. Install Node.js 20+ (T40 biasanya Ubuntu/Debian)
+# 2. Install Node.js 20+
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs build-essential
 
@@ -114,7 +152,45 @@ Lebih lambat ~3–5x, tapi tetap jalan.
 
 ## Run 24/7 di T40
 
-### Opsi A: Screen (paling simpel)
+### Windows — Opsi A: PM2 (recommended)
+
+PM2 jalan native di Windows + auto-restart on crash + bisa autostart on boot.
+
+```powershell
+npm install -g pm2
+pm2 start index-rust.js --name rpo2
+pm2 logs rpo2                      # lihat log real-time
+pm2 save
+
+# Autostart on Windows boot (pakai pm2-windows-startup):
+npm install -g pm2-windows-startup
+pm2-startup install
+pm2 save
+```
+
+### Windows — Opsi B: Task Scheduler (built-in)
+
+1. Buka **Task Scheduler** (taskschd.msc)
+2. **Create Task** → tab General: centang "Run whether user is logged on or not"
+3. Tab Triggers: At startup
+4. Tab Actions:
+   - Program: `C:\Program Files\nodejs\node.exe`
+   - Arguments: `index-rust.js`
+   - Start in: `C:\Users\AZ\Pictures\bot\rpo2-miner`
+5. Tab Settings: centang "If the task fails, restart every: 1 minute, attempt 999 times"
+
+### Windows — Opsi C: NSSM (jalan sebagai Windows Service)
+
+Untuk yang mau professional setup:
+```powershell
+# Download NSSM dari https://nssm.cc/download
+.\nssm.exe install rpo2-miner "C:\Program Files\nodejs\node.exe" "index-rust.js"
+.\nssm.exe set rpo2-miner AppDirectory "C:\Users\AZ\Pictures\bot\rpo2-miner"
+.\nssm.exe set rpo2-miner AppEnvironmentExtra "RPOW_SESSION=YOUR_COOKIE_HERE"
+.\nssm.exe start rpo2-miner
+```
+
+### Linux — Opsi A: Screen
 
 ```bash
 screen -S rpow
@@ -123,7 +199,7 @@ node index-rust.js
 # screen -r rpow untuk re-attach
 ```
 
-### Opsi B: systemd (recommended, auto-restart on boot)
+### Linux — Opsi B: systemd (auto-restart on boot)
 
 ```bash
 # 1. Edit unit file: ganti USER, WORKDIR, dan SESSION_COOKIE
@@ -139,7 +215,7 @@ systemctl status rpo2-miner
 journalctl -u rpo2-miner -f
 ```
 
-### Opsi C: PM2
+### Linux — Opsi C: PM2
 
 ```bash
 sudo npm install -g pm2
@@ -191,9 +267,10 @@ git pull && git log -1 --oneline
 
 ### `Solver binary not found`
 Build dulu:
-```bash
-cd solver && cargo build --release
-```
+- **Windows (PowerShell):** `cd solver; .\build.ps1` (atau `cargo build --release`)
+- **Linux:** `cd solver && ./build.sh`
+
+Catatan Windows: binary asli bernama `rpow2-solver.exe`. Versi terbaru script sudah auto-detect, tapi kalau Anda clone repo lama, pull dulu (`git pull`).
 
 ### `Session invalid or expired`
 Cookie kadaluwarsa atau salah copy. Login ulang ke rpow2.com → copy cookie baru → update `config.js`.

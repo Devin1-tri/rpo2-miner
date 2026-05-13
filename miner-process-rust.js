@@ -9,9 +9,11 @@
 const { execFile } = require('child_process');
 const path = require('path');
 
-// Path to compiled Rust solver binary
+// Path to compiled Rust solver binary.
+// Cargo emits `rpow2-solver` on Linux/macOS and `rpow2-solver.exe` on Windows.
+const BINARY_NAME = process.platform === 'win32' ? 'rpow2-solver.exe' : 'rpow2-solver';
 const SOLVER_BIN = process.env.RPOW_SOLVER_BIN ||
-  path.join(__dirname, 'solver', 'target', 'release', 'rpow2-solver');
+  path.join(__dirname, 'solver', 'target', 'release', BINARY_NAME);
 
 // Receive config from parent via env
 const SESSION_COOKIE = process.env.MINER_COOKIE;
