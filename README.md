@@ -2,10 +2,11 @@
 
 SHA-256 PoW miner untuk [rpow2.com](https://rpow2.com), **dituning untuk Dell PowerEdge T40** (Intel Xeon E-2224G, 4 core / 4 thread @ 3.5 GHz, 8 GB RAM).
 
-Fork dari [happy-cuan-og/rpow2-miner](https://github.com/happy-cuan-og/rpow2-miner) dengan dua perbaikan utama:
+Fork dari [happy-cuan-og/rpow2-miner](https://github.com/happy-cuan-og/rpow2-miner) dengan tiga perbaikan utama:
 
 1. **Bug fix HTTP 429 COOLDOWN.** `apiRequest` sekarang membaca field `retry_after` dari response server dan menunggu durasi yang diminta. 429 tidak lagi dihitung sebagai retry attempt, jadi log tidak akan dipenuhi `[Error]` palsu.
 2. **Default config dituning untuk T40.** `NUM_WORKERS=3`, `LOOP_DELAY_MS=5500` — kombinasi ini menghindari 429 sama sekali dan menyisakan 1 core untuk OS.
+3. **CUDA GPU solver opsional** (`index-cuda.js`, `solver-cuda/`). Untuk dijalankan di cloud GPU (RTX 5090 dll). **Risiko ban tinggi, ToS provider bisa dilanggar — lihat warning di bawah.**
 
 > **Disclaimer dari upstream:** _"RPOW2 tokens have no monetary value (educational project)."_ Ini bukan crypto bernilai — anggap sebagai mainan SHA-256 PoW.
 
@@ -286,6 +287,84 @@ Default `MAX_RETRIES=10` sudah cukup tolerant. Kalau koneksi sangat tidak stabil
 
 ---
 
+## Mode CUDA (GPU) — `index-cuda.js`
+
+> ⚠️ **Risiko tinggi.** Mode ini ditujukan untuk eksperimen singkat di GPU cloud (gpuhub, autodl, vast.ai). Sangat mungkin trigger anti-bot rpow2.com (akun di-ban) ATAU melanggar ToS provider GPU (instance di-suspend). RPOW2 token **tidak punya nilai uang**. Jangan pakai untuk long-running.
+
+### Apa yang Anda dapat
+- Custom CUDA SHA-256 kernel (`solver-cuda/sha256_pow.cu`)
+- Entry point `index-cuda.js` (paralel ke `index-rust.js`, format log sama)
+- Setup script `setup-gpuhub.sh` untuk one-shot install di Ubuntu GPU instance
+
+### Estimasi performa
+Di RTX 5090, hash rate ~10–20 GH/s → solve difficulty 33 < 1 detik. **Throughput aktual dibatasi cooldown server (~5 detik antar challenge)**, jadi ceiling efektif ~720 token/jam terlepas dari spek GPU.
+
+### Quick Start gpuhub (Ubuntu 22.04/24.04, CUDA 12.8+)
+
+```bash
+# 1. SSH ke instance gpuhub, lalu:
+git clone https://github.com/Devin1-tri/rpo2-miner.git
+cd rpo2-miner
+
+# 2. One-shot setup (install Node, build solver, scaffold config)
+chmod +x setup-gpuhub.sh
+./setup-gpuhub.sh
+
+# 3. Edit config.js → paste SESSION_COOKIE
+nano config.js
+
+# 4. Jalankan (di dalam `screen` supaya tetap jalan saat SSH disconnect)
+sudo apt-get install -y screen
+screen -S rpow
+node index-cuda.js
+# detach: Ctrl+A lalu D
+# re-attach nanti: screen -r rpow
+```
+
+### Build manual (kalau `setup-gpuhub.sh` gagal)
+
+```bash
+# Verifikasi CUDA toolkit
+nvcc --version           # harus >= 12.8 untuk sm_120 (RTX 5090)
+nvidia-smi               # cek driver + GPU terdeteksi
+
+# Build CUDA solver
+cd solver-cuda
+chmod +x build.sh
+./build.sh
+cd ..
+```
+
+Kalau `nvcc` ada tapi version-nya < 12.8 dan Anda di RTX 5090, build akan fallback ke PTX `compute_90` (Hopper) yang di-JIT-compile driver. Lebih lambat sedikit di first launch tapi tetap jalan.
+
+### Environment variables CUDA-specific
+
+| Variable | Default | Keterangan |
+|---|---|---|
+| `RPOW_SOLVER_BIN` | `./solver-cuda/rpow2-cuda` | Path ke CUDA binary (override kalau perlu) |
+| `RPOW_BATCH` | `16777216` (16M) | Nonces per kernel launch. Naikkan kalau GPU underutilized. |
+
+### Monitoring saat mining GPU
+
+```bash
+nvidia-smi -l 1               # GPU util + memory + power, refresh per detik
+nvtop                         # htop-style GPU monitor (sudo apt install nvtop)
+```
+
+Selama mining, expected:
+- GPU utilization: ~95–100%
+- Memory: <500 MB (kernel ringan)
+- Power: mendekati TDP GPU (~575W untuk RTX 5090 di full load)
+
+### Kalau anti-bot kena
+
+Gejala: 403 atau pola 429 yang tidak normal (retry_after sangat lama), akun tidak bisa login lagi, atau ban silent (mint sukses tapi balance tidak naik). Kalau itu terjadi:
+1. **Hentikan miner segera.**
+2. Tunggu beberapa hari sebelum login ulang dari IP berbeda.
+3. Atau pindah kembali ke mode T40 CPU yang lebih konservatif.
+
+---
+
 ## Perbedaan dari Upstream `happy-cuan-og/rpow2-miner`
 
 | Hal | Upstream | T40 fork |
@@ -298,11 +377,18 @@ Default `MAX_RETRIES=10` sudah cukup tolerant. Kalau koneksi sangat tidak stabil
 | systemd unit | — | Disediakan |
 | README | English, generic | Bahasa Indonesia, T40-specific |
 
-File yang dimodifikasi:
+File yang dimodifikasi/ditambah:
 - `index-rust.js`, `index.js`, `miner-process-rust.js`, `miner-process.js` (429 fix)
+- `index-rust.js`, `miner-process-rust.js`, `multi-rust.js` (Windows binary detection)
+- `index-rust.js` (heartbeat log + timeout 30 min)
 - `config.example.js` (T40 defaults)
-- `systemd/rpo2-miner.service` (baru)
-- `README.md` (re-written)
+- `systemd/rpo2-miner.service` (baru, Linux 24/7)
+- `solver/build.ps1` (baru, Windows build script)
+- `solver-cuda/sha256_pow.cu` (baru, CUDA kernel)
+- `solver-cuda/build.sh` (baru, nvcc wrapper)
+- `index-cuda.js` (baru, GPU entry point)
+- `setup-gpuhub.sh` (baru, one-shot gpuhub installer)
+- `README.md` (re-written, ada section CUDA)
 
 ---
 
