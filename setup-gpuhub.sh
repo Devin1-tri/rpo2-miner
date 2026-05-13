@@ -29,9 +29,41 @@ nvidia-smi -L
 echo
 
 if ! command -v nvcc >/dev/null 2>&1; then
-    echo "  ⚠ nvcc (CUDA toolkit) not found. Attempting install..."
-    sudo apt-get update
-    sudo apt-get install -y nvidia-cuda-toolkit
+    echo "  ⚠ nvcc not in PATH. Searching /usr/local/cuda*/bin..."
+    # Prefer the newest CUDA version available (e.g. cuda-12.8 over cuda-12).
+    FOUND_NVCC=""
+    for cdir in /usr/local/cuda-12.* /usr/local/cuda-13.* /usr/local/cuda /usr/local/cuda-12; do
+        if [ -x "$cdir/bin/nvcc" ]; then
+            FOUND_NVCC="$cdir"
+            break
+        fi
+    done
+
+    if [ -n "$FOUND_NVCC" ]; then
+        echo "  ✓ Found CUDA toolkit at: $FOUND_NVCC"
+        export PATH="$FOUND_NVCC/bin:$PATH"
+        export LD_LIBRARY_PATH="$FOUND_NVCC/lib64:${LD_LIBRARY_PATH:-}"
+
+        # Persist for future SSH sessions if not already in ~/.bashrc
+        if ! grep -q "$FOUND_NVCC/bin" ~/.bashrc 2>/dev/null; then
+            {
+                echo ""
+                echo "# Added by rpo2-miner setup-gpuhub.sh"
+                echo "export PATH=\"$FOUND_NVCC/bin:\$PATH\""
+                echo "export LD_LIBRARY_PATH=\"$FOUND_NVCC/lib64:\${LD_LIBRARY_PATH:-}\""
+            } >> ~/.bashrc
+            echo "  ✓ Persisted CUDA path to ~/.bashrc"
+        fi
+    else
+        echo "  ⚠ No /usr/local/cuda*/bin/nvcc found. Attempting apt install..."
+        sudo apt-get update
+        sudo apt-get install -y nvidia-cuda-toolkit
+    fi
+fi
+
+if ! command -v nvcc >/dev/null 2>&1; then
+    echo "  ✗ nvcc still not available after setup. Aborting." >&2
+    exit 1
 fi
 echo "  nvcc: $(nvcc --version | grep release)"
 echo
